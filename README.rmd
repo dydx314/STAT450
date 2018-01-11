@@ -1,2 +1,25 @@
-# STAT450
-Repository for STAT 450
+## STAT 450
+
+# Introduction
+Hi everyone, I am *David Yin (Dong Xing)*, a.k.a. *dydx*. I like $\pi$ and celebrate $\pi$ day every year. I am excited to take STAT450 with fellow smart students. One of my pet peeves is leaving both my 2FA github authorization number and my github recovery code in my company phone and computer respectively with both devices being wiped, forcing myself to create a new github account. 
+
+# Favorite equation
+My favorite equation is the stirlings approximation: $n! \approx \sqrt{2 \pi n}(\frac{n}{e})^e$. It comes in handy if you want to know the relative size of the factorial relative to other functions.
+
+# Favorite datasets
+My favorite dataset is Gapminder
+```{r}
+head(gapminder::gapminder)
+```
+I like this because there was a TED talk done by Hans Rosling which I fell in love with.
+
+For example, you can see that the world is progressing in the right direction if you see the relationship between mean GDP per capita and time (in chunks of 5 years):
+```{r}
+library(ggplot2)
+gap = aggregate(gapminder::gapminder[,6], list(gapminder::gapminder$year), mean)
+names(gap) = c("year", "meangdppercap")
+ggplot(data = gap, aes(y = meangdppercap, x = year)) + geom_line() + geom_point()
+```
+
+
+
