@@ -4,7 +4,7 @@
 Hi everyone, I am **David Yin (Dong Xing)**, a.k.a. **dydx**. I like $\pi$ and celebrate $\pi$ day every year. I am excited to take STAT450 with fellow smart students. One of my pet peeves is leaving both my 2FA github authorization number and my github recovery code in my company phone and computer respectively with both devices being wiped, forcing myself to create a new github account. 
 
 # Favorite equation
-My favorite equation is the stirlings approximation: $$n! \approx \sqrt{2 \pi n}(\frac{n}{e})^e$$. It comes in handy if you want to know the relative size of the factorial relative to other functions.
+My favorite equation is the stirlings approximation: $n! \approx \sqrt{2 \pi n}(\frac{n}{e})^e$. It comes in handy if you want to know the relative size of the factorial relative to other functions.
 
 # Favorite datasets
 My favorite dataset is Gapminder
