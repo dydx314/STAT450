@@ -3,8 +3,8 @@ title: "STAT 450 - Biosolids Application Case Study"
 author: "David Yin"
 date: "Feb 5, 2018"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 fontsize: 11pt
 ---
 
