@@ -1,1 +1,4 @@
 .Rhistory
+
+# exclude everything in hidden folder
+hidden/*
