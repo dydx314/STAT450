@@ -167,6 +167,15 @@ We excluded variables that we think are irrelevant for prediction, such as:
 
 Thus, the remaining variables that were considered in the model are:
 
+- Price
+- Days on Market
+- Total Bedroom
+- Total Floor Area
+- Age
+- Year Built
+- Address
+- Bylaw Restrictions (such as pet allowance).
+
 (include list)
 
 Using random forest with cross validation, we have found that the mean squared prediction error is approximately ... This means that our ... is around ... to ...
