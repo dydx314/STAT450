@@ -1,0 +1,216 @@
+---
+title: "RF v1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Random Forest
+```{r data}
+##library("lubridate")
+load("clean_data.RData")
+
+date <- as.Date(full_data$List.Date, "%m/%d/%Y")
+SoldYear <- format(date + full_data$DOM,format = "%Y/%m/%d")
+full_data$SoldYear <- as.Date(SoldYear, "%Y/%m/%d")
+
+#may need to change the following condition
+outlier <- which(full_data$Age >= 999 | is.na(full_data$Price) | is.na(full_data$Sold.Price.per.SqFt) | is.na(full_data$DOM))
+full_data <- full_data[-outlier,]
+
+#may need to consider including/excluding other columns such as List.Date
+subset_data <- subset(full_data, select=-c(S.A, PicCount, Pics, ML.., Status, Address, List.Date, TypeDwel,  List.Sales.Rep.1...Agent.Full.Name, Age.Type))
+
+#assuming TotalParking == NA is same as 0
+#need to check every single column if replacing NA with 0 is appropriate
+subset_data <- replace(subset_data, is.na(subset_data), 0)
+
+
+#subset_data[ (subset_data$TotalPrkng > 2), c("TotalPrkng")] <- 3 # 3 == other
+#subset_data[ (subset_data$Age >=0 & subset_data$Age <=10), c("Age")] <- "0to10"
+#subset_data[ (subset_data$Age >=11 & subset_data$Age <=20), c("Age")] <- "11to20"
+#subset_data[ (subset_data$Age >=21 & subset_data$Age <=30), c("Age")] <- "21to30"
+#subset_data[ (subset_data$Age >=31 & subset_data$Age <=40), c("Age")] <- "31to40"
+#subset_data[ (subset_data$Age >=41), c("Age")] <- "other"
+
+#subset_data[ (subset_data$Yr.Blt < 1990), c("Yr.Blt")] <- "1911-1990"
+
+
+subset_data$Tot.BR <- as.factor(subset_data$Tot.BR)
+subset_data$Tot.Baths <- as.factor(subset_data$Tot.Baths)
+subset_data$Age <- as.factor(subset_data$Age)
+subset_data$Yr.Blt <- as.factor(subset_data$Yr.Blt)
+subset_data$TotalPrkng <- as.factor(subset_data$TotalPrkng)
+#subset_data$DOM <- as.factor(subset_data$DOM)
+subset_data$Neighborhood <- as.factor(subset_data$Neighborhood)
+subset_data$Age <- as.numeric(subset_data$Age)
+
+# check if prev sold
+subset_data$Prev.Sold = subset_data$Prev.Price == 0
+subset_data$Prev.Sold <- as.factor(subset_data$Prev.Sold)
+
+# group rare bylaw restrictions
+table(subset_data$Bylaw.Restrictions)
+subset_data$Bylaw.Restrictions <- as.character(subset_data$Bylaw.Restrictions)
+subset_data$Bylaw.Restrictions = paste0(subset_data$Bylaw.Restrictions, ',')
+
+subset_data$Pets.Allowed = grepl("Pets Allowed,", subset_data$Bylaw.Restrictions)
+subset_data$Rentals.Allowed = grepl("Rentals Allowed,", subset_data$Bylaw.Restrictions)
+subset_data$Age.Restrictions = grepl("Age Restrictions,", subset_data$Bylaw.Restrictions)
+subset_data$Smoking.Restrictions = grepl("Smoking Restrictions,", subset_data$Bylaw.Restrictions)
+subset_data$Pets.Allowed.Rst = grepl("Pets Allowed w/Rest.,", subset_data$Bylaw.Restrictions)
+subset_data$Rentals.Allowed.Rst = grepl("Rentals Allwd w/Restrctns,", subset_data$Bylaw.Restrictions)
+
+subset_data$Pets.Allowed <- as.factor(subset_data$Pets.Allowed)
+subset_data$Rentals.Allowed <- as.factor(subset_data$Rentals.Allowed)
+subset_data$Age.Restrictions <- as.factor(subset_data$Age.Restrictions)
+subset_data$Smoking.Restrictions <- as.factor(subset_data$Smoking.Restrictions)
+subset_data$Pets.Allowed.Rst <- as.factor(subset_data$Pets.Allowed.Rst)
+subset_data$Rentals.Allowed.Rst <- as.factor(subset_data$Rentals.Allowed.Rst)
+
+subset_data <- subset(subset_data, select=-c(Bylaw.Restrictions, Yr.Blt))
+
+
+collingwood <- subset(subset_data, Neighborhood == "Collingwood")
+metrotown <-subset(subset_data, Neighborhood == "Metrotown")
+whalley <-subset(subset_data, Neighborhood == "Whalley")
+```
+
+```{r random forest}
+library('randomForest')
+
+performCV <- function(district, ntree) {
+  y <- as.vector(district$Sold.Price.per.SqFt)
+  xm <- model.matrix(~., data = subset(district, select = -c(Sold.Price.per.SqFt, Neighborhood, Price)))
+  n <- nrow(xm)
+  k <- 2
+  ii <- (1:n)%%k + 1
+  set.seed(321)
+  N <- 5
+  mspe <- rep(0, N)
+  for (i in 1:N) {
+    ii <- sample(ii)
+    pr <- rep(0, n)
+    for (j in 1:k) {
+      rf=randomForest(x = xm[ii != j, ], y=y[ii != j], xtest=xm[ii == j, ],ytest=y[ii == j], ntree=ntree)
+      pr[ii == j] <- rf$test$predicted
+    }
+    mspe[i] <- mean((district$Sold.Price.per.SqFt - pr)^2)
+  }
+  return(mspe)
+}
+
+
+performCV2 <- function(district, ntree) {
+  y <- as.vector(district$Sold.Price.per.SqFt)
+  n <- length(y)
+  district_ <- subset(district, select = -c(Sold.Price.per.SqFt, Neighborhood, Price))
+  k <- 2
+  ii <- (1:n)%%k + 1
+  set.seed(321)
+  N <- 5
+  mspe <- rep(0, N)
+  for (i in 1:N) {
+    ii <- sample(ii)
+    pr <- rep(0, n)
+    for (j in 1:k) {
+      rf=randomForest(x = district_[ii != j, ], y=y[ii != j], xtest=district_[ii == j, ],ytest=y[ii == j], ntree=ntree)
+      pr[ii == j] <- rf$test$predicted
+    }
+    mspe[i] <- mean((district$Sold.Price.per.SqFt - pr)^2)
+  }
+  return(mspe)
+}
+
+
+```
+
+NOTE (from crossvalidated.com):
+One of the benefits of decision trees is that ordinal (continuous or discrete) input data does not require any significant preprocessing. In fact, the results should be consistent regardless of any scaling or translational normalization, since the trees can choose equivalent splitting points. The best preprocessing for decision trees is typically whatever is easiest or whatever is best for visualization, as long as it doesn't change the relative order of values within each data dimension.
+
+Categorical inputs, which have no sensible order, are a special case. If your random forest implementation doesn't have a built-in way to deal with categorical input, you should probably use a 1-hot encoding:
+
+If a categorical value has nn categories, you encode the value using nn dimensions, one corresponding to each category.
+For each data point, if it is in category kk, the corresponding kkth dimension is set to 1, while the rest are set to 0.
+This 1-hot encoding allows decision trees to perform category equality tests in one split since inequality splits on non-ordinal data doesn't make much sense.
+
+
+
+
+Now we would like to look at 
+
+(insert brief intro to random forest)
+
+Random forest is a statistics method used to build predictive models for classification or regression models. It involves the use of ensembling the predictions of multiple decision trees. 
+
+We will use it to predict monthly average price per square foot based on the relevant characteristics identified above. Unlike ARIMA which is fitted to time series data, a random forest allows us to analyze our data from a different perspective. 
+
+The 
+
+We will then use them to build a random forest. For example, instead of using "List Date", we can use "Year (2006 to 2017)", "Month (1 to 12)", and "Day (1 to 31)" to build a forest.
+
+Random forests are robust to inclusion of irrelevant features. Thus we can safely include various external variables such as interest rates. After this we can build a feature plot. Through feature ranking, we can evaluate which feature has the greatest impact on "Price". In addition, its use of bagging should result in better predictions as this method decreases the variance of the model without increasing its bias.
+
+In the end, we would like to compare our model's prediction with the Morning Li team's prediction.
+
+
+
+
+
+Since our samples can be random, we used a technique called cross-validation, which takes
+
+We excluded variables that we think are irrelevant for prediction, such as:
+
+
+
+Thus, the remaining variables that were considered in the model are:
+
+(include list)
+
+Using random forest with cross validation, we have found that the mean squared prediction error is approximately ... This means that our ... is around ... to ...
+
+Let us take a look at the variable importance generated by this ...
+
+```{r analysis}
+MSPE = performCV(collingwood, 10)
+MSPE2 = performCV2(collingwood, 10)
+
+## testing below
+district = collingwood
+y <- as.vector(district$Sold.Price.per.SqFt)
+district <- subset(district, select = -c(Sold.Price.per.SqFt, Neighborhood, Price))
+
+n <- length(y)
+k <- 3
+ii <- (1:n)%%k + 1
+set.seed(123)
+ii <- sample(ii)
+j = 1
+rf=randomForest(x = district[ii != j, ], y=y[ii != j], xtest=district[ii == j, ],ytest=y[ii == j], ntree=10)
+varImpPlot(rf)
+
+
+
+
+
+# this is original
+
+district = collingwood
+y <- as.vector(district$Sold.Price.per.SqFt)
+## build model matrix excluding confounding and problematic variables
+xm <- model.matrix(~., data = subset(district, select = -c(Sold.Price.per.SqFt, Neighborhood, Price)))
+n <- nrow(xm)
+k <- 3
+ii <- (1:n)%%k + 1
+set.seed(123)
+ii <- sample(ii)
+j = 1
+rf=randomForest(x = xm[ii != j, ], y=y[ii != j], xtest=xm[ii == j, ],ytest=y[ii == j], ntree=10)
+varImpPlot(rf)
+
+
+
+```
+
